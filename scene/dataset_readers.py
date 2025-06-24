@@ -12,7 +12,7 @@
 import os
 import sys
 from PIL import Image
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
 from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
@@ -36,6 +36,7 @@ class CameraInfo(NamedTuple):
     width: int
     height: int
     is_test: bool
+    background: Optional[np.ndarray]
 
 class SceneInfo(NamedTuple):
     point_cloud: BasicPointCloud
@@ -111,7 +112,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, depths_params, images_fold
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, depth_params=depth_params,
                               image_path=image_path, image_name=image_name, depth_path=depth_path,
-                              width=width, height=height, is_test=image_name in test_cam_names_list)
+                              width=width, height=height, is_test=image_name in test_cam_names_list, background=None)
         cam_infos.append(cam_info)
 
     sys.stdout.write('\n')
@@ -250,13 +251,7 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
             image_name = Path(cam_name).stem
             image = Image.open(image_path)
 
-            im_data = np.array(image.convert("RGBA"))
-
             bg = np.array([1,1,1]) if white_background else np.array([0, 0, 0])
-
-            norm_data = im_data / 255.0
-            arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
-            image = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
 
             fovy = focal2fov(fov2focal(fovx, image.size[0]), image.size[1])
             FovY = fovy 
@@ -265,8 +260,8 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
             depth_path = os.path.join(depths_folder, f"{image_name}.png") if depths_folder != "" else ""
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX,
-                            image_path=image_path, image_name=image_name,
-                            width=image.size[0], height=image.size[1], depth_path=depth_path, depth_params=None, is_test=is_test))
+                            image_path=image_path, image_name=image_name, width=image.size[0], height=image.size[1],
+                            depth_path=depth_path, depth_params=None, is_test=is_test, background=bg))
             
     return cam_infos
 

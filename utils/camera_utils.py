@@ -60,6 +60,11 @@ def loadCam(args, id, cam_info, resolution_scale, is_nerf_synthetic, is_test_dat
         scale = float(global_down) * float(resolution_scale)
         resolution = (int(orig_w / scale), int(orig_h / scale))
 
+    image = np.array(image).astype(np.float32) / 255.0
+    # pre-multiply alpha for RGB channels
+    if image.shape[-1] == 4:
+        image[...,:3] = image[...,:3] * image[..., 3:4] + cam_info.background * (1 - image[..., 3:4])
+
     return Camera(resolution, colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T, 
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY, depth_params=cam_info.depth_params,
                   image=image, invdepthmap=invdepthmap,
